@@ -1,2 +1,1 @@
-# XYZ_Technologies
-CICD intergration
+# xyztechnologies code
