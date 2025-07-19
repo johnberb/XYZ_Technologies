@@ -72,6 +72,15 @@ pipeline {
                         # 2. Verify file transfer
                         ssh -i "$SSH_KEY" ansible@10.10.10.229 \
                             "ls -l /home/ansible/ansible/files/Dockerfile.j2"
+
+                        # 3. Copy Dockerfile.j2 from Jenkins to Ansible server
+                        scp -i "$SSH_KEY" \
+                            "/var/lib/jenkins/workspace/BuildingXYZTechnologies/DockerBuildXYZ.yml" \
+                            ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
+
+                        # 4. Verify file transfer
+                        ssh -i "$SSH_KEY" ansible@10.10.10.229 \
+                            "ls -l /home/ansible/ansible/playbooks/DockerBuildXYZ.yml"    
                     
                         #copy private key temporarily onto the ansible server
                         scp -i "$SSH_KEY" "$SSH_KEY" ansible@10.10.10.229:/home/ansible/.ssh/jenkins_key
@@ -81,14 +90,14 @@ pipeline {
                         ssh -i "$SSH_KEY" ansible@10.10.10.229 "echo 'SSH test successful'"
         
                         # Run Ansible PLAYBOOK on the Ansible server 
-                        #ssh -i "$SSH_KEY" ansible@10.10.10.229 "
+                        ssh -i "$SSH_KEY" ansible@10.10.10.229 "
                             # Run the playbook
-                            #cd /home/ansible/ansible &&
-                            #ansible-playbook \
-                                #-i /etc/ansible/hosts \
-                                #playbooks/docker_build.yml \
-                                #--extra-vars 'artifact_path=/tmp/jenkins-artifacts/ABCtechnologies-1.0.war'
-                        #"
+                            cd /home/ansible/ansible &&
+                            ansible-playbook \
+                                -i /etc/ansible/hosts \
+                                playbooks/DockerBuildXYZ.yml \
+                                --extra-vars 'artifact_path=/tmp/jenkins-artifacts/XYZtechnologies-1.0.war'
+                        "
                     '''
                 }
             }
