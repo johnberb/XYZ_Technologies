@@ -3,22 +3,27 @@ pipeline {
 
     environment {
         ANSIBLE_HOME = '/home/ansible/ansible'
-        BUILD_NUMBER = "${env.BUILD_ID}"
         REMOTE_ARTIFACT_DIR = '/home/ansible/ansible/tmp/jenkins-artifacts'
     }
     
     stages {
         stage('Compile and Package') {
             steps {
+                build job: 'CompileXYZ_technologies', wait: true, propagate: true
+                build job: 'Package-job', wait: true, propagate: true
+            }
+        }
+        
+        stage('Verify Local WAR File') {
+            steps {
                 script {
-                    // Trigger compile job and wait for completion
-                    def compileBuild = build job: 'CompileXYZ_technologies', wait: true, propagate: true
-                    
-                    // Wait for Package-job to complete (using build step with parameters if needed)
-                    def packageBuild = build job: 'Package-job', wait: true, propagate: true
-                    
-                    // Store the Package-job's workspace path
-                    env.PACKAGE_WORKSPACE = "/var/lib/jenkins/workspace/Package-job" // Default path
+                    // Verify the .war file exists before transfer
+                    def warFiles = findFiles(glob: '**/target/*.war')
+                    if (warFiles.length == 0) {
+                        error "No WAR files found in workspace! Check Package-job artifacts."
+                    }
+                    echo "Found WAR file: ${warFiles[0].path}"
+                    env.WAR_FILE_PATH = warFiles[0].path
                 }
             }
         }
@@ -31,7 +36,8 @@ pipeline {
                         keyFileVariable: 'SSH_KEY'
                     )]) {
                         sh """
-                            ssh -o StrictHostKeyChecking=no -i '$SSH_KEY' root@10.10.10.229 'whoami && pwd && mkdir -p ${REMOTE_ARTIFACT_DIR}'
+                            ssh -o StrictHostKeyChecking=no -i '$SSH_KEY' root@10.10.10.229 \
+                                'mkdir -p ${REMOTE_ARTIFACT_DIR} && ls -la ${REMOTE_ARTIFACT_DIR}'
                         """
                     }
                 }
@@ -40,29 +46,37 @@ pipeline {
         
         stage('Transfer WAR File') {
             steps {
-                sshPublisher(
-                    publishers: [
-                        sshPublisherDesc(
-                            configName: 'Ansible',
-                            transfers: [
-                                sshTransfer(
-                                    sourceFiles: "${env.PACKAGE_WORKSPACE}/target/XYZtechnologies-1.0.war",
-                                    removePrefix: "${env.PACKAGE_WORKSPACE}/target",
-                                    remoteDirectory: REMOTE_ARTIFACT_DIR,
-                                    execCommand: "chmod 644 ${REMOTE_ARTIFACT_DIR}/*.war"
-                                )
-                            ],
-                            verbose: true
-                        )
-                    ]
-                )
+                script {
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: 'Ans2-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        // First clean remote directory
+                        sh """
+                            ssh -i '$SSH_KEY' root@10.10.10.229 \
+                                'rm -f ${REMOTE_ARTIFACT_DIR}/*.war'
+                        """
+                        
+                        // Manual SCP transfer with verbose output
+                        sh """
+                            scp -v -i '$SSH_KEY' ${env.WAR_FILE_PATH} \
+                                root@10.10.10.229:${REMOTE_ARTIFACT_DIR}/
+                        """
+                        
+                        // Verify transfer
+                        sh """
+                            ssh -i '$SSH_KEY' root@10.10.10.229 \
+                                'ls -la ${REMOTE_ARTIFACT_DIR} && chmod 644 ${REMOTE_ARTIFACT_DIR}/*.war'
+                        """
+                    }
+                }
             }
         }
     }
     
     post {
         always {
-            cleanWs() 
+            cleanWs()
         }
     }
 }
