@@ -4,7 +4,7 @@ pipeline {
     environment {
         ANSIBLE_HOME = '/home/ansible/ansible'
         REMOTE_ARTIFACT_DIR = '/home/ansible/ansible/tmp/jenkins-artifacts'
-        WAR_SOURCE_PATH = '/var/lib/jenkins/workspace/Package-job/target/*.war' // Update this path
+        WAR_SOURCE_PATH = '/var/lib/jenkins/workspace/Package-job/target/XYZtechnologies-1.0.war' // Update this path
     }
     
     stages {
