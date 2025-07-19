@@ -78,9 +78,9 @@ pipeline {
                             "/var/lib/jenkins/workspace/BuildingXYZTechnologies/DockerBuildXYZ.yml" \
                             ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
                         
-                        # 4. Copy Kube_deployXYZ.yml from Jenkins to Ansible server
+                        # 4. Copy KudeDeployXYZ.yml from Jenkins to Ansible server
                         scp -i "$SSH_KEY" \
-                            "/var/lib/jenkins/workspace/BuildingXYZTechnologies/Kube_deployXYZ.yml" \
+                            "/var/lib/jenkins/workspace/BuildingXYZTechnologies/KudeDeployXYZ.yml" \
                             ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
 
                         # 5. Verify file transfer
@@ -116,20 +116,20 @@ pipeline {
                         keyFileVariable: 'SSH_KEY'
                     )]) {
                         sh """
-                            # 1. Copy Kube_deployXYZ.yml from Jenkins to Ansible server
+                            # 1. Copy KudeDeployXYZ.yml from Jenkins to Ansible server
                             #scp -i "$SSH_KEY" \
-                                #"/var/lib/jenkins/workspace/BuildingXYZTechnologies/Kube_deployXYZ.yml" \
+                                #"/var/lib/jenkins/workspace/BuildingXYZTechnologies/KudeDeployXYZ.yml" \
                                 #ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
 
                             # 2. Verify file transfer
                             ssh -i "$SSH_KEY" ansible@10.10.10.229 \
-                                "ls -l /home/ansible/ansible/playbooks/Kube_deployXYZ.yml"
+                                "ls -l /home/ansible/ansible/playbooks/KudeDeployXYZ.yml"
 
                             ssh -o StrictHostKeyChecking=no -i '$SSH_KEY' ansible@10.10.10.229 '
                                 cd ${ANSIBLE_HOME} && \
                                 ansible-playbook \
                                     -i /etc/ansible/hosts \
-                                    playbooks/Kube_deployXYZ.yml \
+                                    playbooks/KudeDeployXYZ.yml \
                                     --extra-vars \"image_tag=${BUILD_NUMBER}\"
                             '
                         """
