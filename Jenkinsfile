@@ -13,13 +13,8 @@ pipeline {
                 build job: 'CompileXYZ_technologies', wait: true
             }
         }
-    post {
-        always {
-            cleanWs() 
-        }
-    }
-}
-     // STAGE 3: Verify SSH Connection
+        
+        // STAGE 3: Verify SSH Connection
         stage('Test SSH Connection') {
             steps {
                 script {
@@ -56,4 +51,11 @@ pipeline {
                 )
             }
         }
+    }
+    
+    post {
+        always {
+            cleanWs() 
+        }
+    }
 }
