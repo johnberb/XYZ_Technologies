@@ -60,7 +60,6 @@ pipeline {
     
     post {
         always {
-            cleanWs()
             script {
                 echo "Build completed with status: ${currentBuild.result}"
             }
