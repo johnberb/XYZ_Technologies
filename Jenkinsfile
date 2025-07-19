@@ -46,7 +46,7 @@ pipeline {
                             configName: 'Ansible',
                             transfers: [
                                 sshTransfer(
-                                    sourceFiles: "${env.PACKAGE_WORKSPACE}/target/*.war",
+                                    sourceFiles: "${env.PACKAGE_WORKSPACE}/target/XYZtechnologies-1.0.war",
                                     removePrefix: "${env.PACKAGE_WORKSPACE}/target",
                                     remoteDirectory: REMOTE_ARTIFACT_DIR,
                                     execCommand: "chmod 644 ${REMOTE_ARTIFACT_DIR}/*.war"
