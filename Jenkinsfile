@@ -14,11 +14,11 @@ pipeline {
                     // Trigger compile job and wait for completion
                     def compileBuild = build job: 'CompileXYZ_technologies', wait: true, propagate: true
                     
-                    // Find and wait for the downstream Package-job
-                    def packageJobBuild = waitForDownstreamBuild('Package-job', compileBuild)
+                    // Wait for Package-job to complete (using build step with parameters if needed)
+                    def packageBuild = build job: 'Package-job', wait: true, propagate: true
                     
-                    // Store the Package-job's workspace path for artifact transfer
-                    env.PACKAGE_WORKSPACE = packageJobBuild?.buildVariables?.WORKSPACE ?: '/var/lib/jenkins/workspace/Package-job'
+                    // Store the Package-job's workspace path
+                    env.PACKAGE_WORKSPACE = "/var/lib/jenkins/workspace/Package-job" // Default path
                 }
             }
         }
@@ -63,35 +63,6 @@ pipeline {
     post {
         always {
             cleanWs() 
-        }
-    }
-}
-
-// Helper function to wait for downstream job
-def waitForDownstreamBuild(String jobName, upstreamBuild) {
-    timeout(time: 30, unit: 'MINUTES') {
-        while (true) {
-            // Get all downstream builds of the compile job
-            def downstreamBuilds = Hudson.instance.getItemByFullName(upstreamBuild.projectName)
-                .getBuildByNumber(upstreamBuild.number.toInteger())
-                .getDownstreamBuilds()
-            
-            // Find the specific Package-job
-            def packageBuild = downstreamBuilds.find { it.projectName == jobName }
-            
-            if (packageBuild) {
-                echo "Found downstream ${jobName} build #${packageBuild.number}"
-                // Wait for it to complete if it's still running
-                if (packageBuild.isBuilding()) {
-                    echo "Waiting for ${jobName} build #${packageBuild.number} to complete..."
-                    sleep 10
-                } else {
-                    return packageBuild
-                }
-            } else {
-                echo "Waiting for ${jobName} to be triggered..."
-                sleep 10
-            }
         }
     }
 }
