@@ -102,6 +102,36 @@ pipeline {
                 }
             }
         }
+         // STAGE 6: Deploy to Kubernetes
+        stage('Deploy to K8s') {
+            steps {
+              script {
+                    withCredentials([sshUserPrivateKey(       
+                        credentialsId: 'Ans2-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            # 1. Copy Kube_deployXYZ.yml from Jenkins to Ansible server
+                            scp -i "$SSH_KEY" \
+                                "/var/lib/jenkins/workspace/BuildingXYZTechnologies/Kube_deployXYZ.yml" \
+                                ansible@10.10.10.229:"/home/ansible/ansible/files/"
+
+                            # 2. Verify file transfer
+                            ssh -i "$SSH_KEY" ansible@10.10.10.229 \
+                                "ls -l /home/ansible/ansible/files/Kube_deployXYZ.yml"
+
+                            ssh -o StrictHostKeyChecking=no -i '$SSH_KEY' ansible@10.10.10.229 '
+                                cd ${ANSIBLE_HOME} && \
+                                ansible-playbook \
+                                    -i /etc/ansible/hosts \
+                                    playbooks/Kube_deployXYZ.yml \
+                                    --extra-vars \"image_tag=${BUILD_NUMBER}\"
+                            '
+                        """
+                    }
+              }
+            }
+        }
         
     }
     
