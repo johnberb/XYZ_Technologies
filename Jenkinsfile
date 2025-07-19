@@ -4,6 +4,7 @@ pipeline {
     environment {
         ANSIBLE_HOME = '/home/ansible/ansible'
         REMOTE_ARTIFACT_DIR = '/home/ansible/ansible/tmp/jenkins-artifacts'
+        WAR_SOURCE_PATH = '/var/lib/jenkins/workspace/Package-job/target/*.war' // Update this path
     }
     
     stages {
@@ -14,31 +15,14 @@ pipeline {
             }
         }
         
-        stage('Verify Local WAR File') {
+        stage('Verify Files') {
             steps {
                 script {
-                    // Verify the .war file exists before transfer
-                    def warFiles = findFiles(glob: '**/target/*.war')
-                    if (warFiles.length == 0) {
-                        error "No WAR files found in workspace! Check Package-job artifacts."
-                    }
-                    echo "Found WAR file: ${warFiles[0].path}"
-                    env.WAR_FILE_PATH = warFiles[0].path
-                }
-            }
-        }
-        
-        stage('Test SSH Connection') {
-            steps {
-                script {
-                    withCredentials([sshUserPrivateKey(
-                        credentialsId: 'Ans2-ssh-key',
-                        keyFileVariable: 'SSH_KEY'
-                    )]) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no -i '$SSH_KEY' root@10.10.10.229 \
-                                'mkdir -p ${REMOTE_ARTIFACT_DIR} && ls -la ${REMOTE_ARTIFACT_DIR}'
-                        """
+                    // Basic file check that works in all Jenkins environments
+                    def exists = fileExists "${env.WAR_SOURCE_PATH}"
+                    if (!exists) {
+                        sh "ls -la /var/lib/jenkins/workspace/Package-job/target/" // Debug output
+                        error "WAR file not found at ${env.WAR_SOURCE_PATH}"
                     }
                 }
             }
@@ -51,19 +35,19 @@ pipeline {
                         credentialsId: 'Ans2-ssh-key',
                         keyFileVariable: 'SSH_KEY'
                     )]) {
-                        // First clean remote directory
+                        // 1. Create remote directory
                         sh """
-                            ssh -i '$SSH_KEY' root@10.10.10.229 \
-                                'rm -f ${REMOTE_ARTIFACT_DIR}/*.war'
+                            ssh -o StrictHostKeyChecking=no -i '$SSH_KEY' root@10.10.10.229 \
+                                'mkdir -p ${REMOTE_ARTIFACT_DIR}'
                         """
                         
-                        // Manual SCP transfer with verbose output
+                        // 2. Simple SCP transfer
                         sh """
-                            scp -v -i '$SSH_KEY' ${env.WAR_FILE_PATH} \
+                            scp -i '$SSH_KEY' ${env.WAR_SOURCE_PATH} \
                                 root@10.10.10.229:${REMOTE_ARTIFACT_DIR}/
                         """
                         
-                        // Verify transfer
+                        // 3. Verify transfer
                         sh """
                             ssh -i '$SSH_KEY' root@10.10.10.229 \
                                 'ls -la ${REMOTE_ARTIFACT_DIR} && chmod 644 ${REMOTE_ARTIFACT_DIR}/*.war'
@@ -77,6 +61,9 @@ pipeline {
     post {
         always {
             cleanWs()
+            script {
+                echo "Build completed with status: ${currentBuild.result}"
+            }
         }
     }
 }
