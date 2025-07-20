@@ -24,10 +24,10 @@
     </properties>
     
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>${spring-boot.version}</version>
-    </parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.7.0</version>  <!-- Hardcoded version -->
+	</parent>
     
     <dependencies>
         <!-- Spring Boot Starter Web -->
