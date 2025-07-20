@@ -83,7 +83,12 @@ pipeline {
                             "/var/lib/jenkins/workspace/BuildingXYZTechnologies/KudeDeployXYZ.yml" \
                             ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
 
-                        # 5. Verify file transfer
+                        # 5. Copy monitoringDeployed.yml from Jenkins to Ansible server
+                        scp -i "$SSH_KEY" \
+                            "/var/lib/jenkins/workspace/BuildingXYZTechnologies/monitoringDeployed.yml" \
+                            ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
+
+                        # 6. Verify file transfer
                         ssh -i "$SSH_KEY" ansible@10.10.10.229 \
                             "ls -l /home/ansible/ansible/playbooks/DockerBuildXYZ.yml"    
                     
@@ -137,11 +142,35 @@ pipeline {
               }
             }
         }
-        
+        // STAGE 7: Monitoring Deployment
+        stage('Monitor Deployment') {
+            steps {
+                script {
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: 'Ans2-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )]) {
+                        sh """
+                            ssh -i "$SSH_KEY" ansible@10.10.10.229 "
+                                cd /home/ansible/ansible &&
+                                ansible-playbook \
+                                    -i /etc/ansible/hosts \
+                                    playbooks/monitoringDeployed.yml \
+                                    --extra-vars 'image_tag=${BUILD_NUMBER}'
+                            "
+                        """
+                    }
+                }
+            }
+        }
     }
     
     post {
         always {
+            cleanup {
+                // Clean up workspace
+                cleanWs()
+            }
             script {
                 echo "Build completed with status: ${currentBuild.result}"
             }
