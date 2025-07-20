@@ -62,11 +62,12 @@
                 scrape_interval: 15s
               scrape_configs:
               - job_name: 'myapp'
+                metrics_path: '/actuator/prometheus'
+                scrape_interval: 15s
                 static_configs:
                 - targets: 
                   - 13.126.85.5:30802
                   - 13.201.42.241:30802
-                metrics_path: '/api/metrics'
               - job_name: 'node-exporter'
                 kubernetes_sd_configs:
                   - role: endpoints
