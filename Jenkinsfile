@@ -167,10 +167,7 @@ pipeline {
     
     post {
         always {
-            cleanup {
-                // Clean up workspace
-                cleanWs()
-            }
+           
             script {
                 echo "Build completed with status: ${currentBuild.result}"
             }
