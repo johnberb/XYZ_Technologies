@@ -9,7 +9,7 @@ pipeline {
     
     stages {
         stage('Compile and Package') {
-            agent { label 'master || built-in' } 
+            agent { label 'JenkinsNode' } 
             steps {
                 build job: 'CompileXYZ_technologies', wait: true, propagate: true
                 build job: 'Package-job', wait: true, propagate: true
@@ -51,7 +51,7 @@ pipeline {
         }
 
         stage('Run Ansible Playbook') {
-            agent { label 'JenkinsNode' } 
+            agent { label 'master || built-in' } 
             steps {
                 withCredentials([sshUserPrivateKey(
                     credentialsId: 'Ans2-ssh-key',
@@ -90,7 +90,7 @@ pipeline {
         }
 
         stage('Deploy to K8s') {
-            agent { label 'JenkinsNode' } 
+            agent { label 'master || built-in' } 
             steps {
                 script {
                     withCredentials([sshUserPrivateKey(       
