@@ -30,7 +30,7 @@ pipeline {
         }
         
         stage('Transfer WAR File') {
-            agent { label 'JenkinsNode' } 
+            agent { label 'master || built-in' } 
             steps {
                 script {
                     withCredentials([sshUserPrivateKey(
