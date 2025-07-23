@@ -9,7 +9,7 @@ pipeline {
     
     stages {
         stage('Compile and Package') {
-            agent { label 'master || Built-In Node' } 
+            agent { label 'master || built-in' } 
             steps {
                 build job: 'CompileXYZ_technologies', wait: true, propagate: true
                 build job: 'Package-job', wait: true, propagate: true
