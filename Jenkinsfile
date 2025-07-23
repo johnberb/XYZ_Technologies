@@ -17,7 +17,7 @@ pipeline {
         }
         
         stage('Verify Files') {
-            agent { label 'master' } 
+            agent { label 'master || built-in' } 
             steps {
                 script {
                     def exists = fileExists "${env.WAR_SOURCE_PATH}"
