@@ -1,14 +1,15 @@
 pipeline {
-    agent any
+    agent none 
 
     environment {
         ANSIBLE_HOME = '/home/ansible/ansible'
         REMOTE_ARTIFACT_DIR = '/home/ansible/ansible/tmp/jenkins-artifacts'
-        WAR_SOURCE_PATH = '/var/lib/jenkins/workspace/Package-job/target/XYZtechnologies-1.0.war' // Update this path
+        WAR_SOURCE_PATH = '/var/lib/jenkins/workspace/Package-job/target/XYZtechnologies-1.0.war'
     }
     
     stages {
         stage('Compile and Package') {
+            agent { label 'master' } 
             steps {
                 build job: 'CompileXYZ_technologies', wait: true, propagate: true
                 build job: 'Package-job', wait: true, propagate: true
@@ -16,12 +17,12 @@ pipeline {
         }
         
         stage('Verify Files') {
+            agent { label 'master' } 
             steps {
                 script {
-                    // Basic file check that works in all Jenkins environments
                     def exists = fileExists "${env.WAR_SOURCE_PATH}"
                     if (!exists) {
-                        sh "ls -la /var/lib/jenkins/workspace/Package-job/target/" // Debug output
+                        sh "ls -la /var/lib/jenkins/workspace/Package-job/target/"
                         error "WAR file not found at ${env.WAR_SOURCE_PATH}"
                     }
                 }
@@ -29,26 +30,18 @@ pipeline {
         }
         
         stage('Transfer WAR File') {
+            agent { label 'JenkinsNode' } 
             steps {
                 script {
                     withCredentials([sshUserPrivateKey(
                         credentialsId: 'Ans2-ssh-key',
                         keyFileVariable: 'SSH_KEY'
                     )]) {
-                        // 1. Create remote directory
                         sh """
                             ssh -o StrictHostKeyChecking=no -i '$SSH_KEY' root@10.10.10.229 \
                                 'mkdir -p ${REMOTE_ARTIFACT_DIR}'
-                        """
-                        
-                        // 2. Simple SCP transfer
-                        sh """
                             scp -i '$SSH_KEY' ${env.WAR_SOURCE_PATH} \
                                 root@10.10.10.229:${REMOTE_ARTIFACT_DIR}/
-                        """
-                        
-                        // 3. Verify transfer
-                        sh """
                             ssh -i '$SSH_KEY' root@10.10.10.229 \
                                 'ls -la ${REMOTE_ARTIFACT_DIR} && chmod 644 ${REMOTE_ARTIFACT_DIR}/*.war'
                         """
@@ -56,52 +49,35 @@ pipeline {
                 }
             }
         }
-        // STAGE 5: Build Docker Image
+
         stage('Run Ansible Playbook') {
+            agent { label 'JenkinsNode' } 
             steps {
                 withCredentials([sshUserPrivateKey(
                     credentialsId: 'Ans2-ssh-key',
                     keyFileVariable: 'SSH_KEY'
                 )]) {
                     sh '''
-                        # 1. Copy Dockerfile.j2 from Jenkins to Ansible server
+                        # Copy all necessary files
                         scp -i "$SSH_KEY" \
                             "/var/lib/jenkins/workspace/BuildingXYZTechnologies/Dockerfile.j2" \
                             ansible@10.10.10.229:"/home/ansible/ansible/files/"
-
-                        # 2. Verify file transfer
-                        ssh -i "$SSH_KEY" ansible@10.10.10.229 \
-                            "ls -l /home/ansible/ansible/files/Dockerfile.j2"
-
-                        # 3. Copy Dockerfile.j2 from Jenkins to Ansible server
                         scp -i "$SSH_KEY" \
                             "/var/lib/jenkins/workspace/BuildingXYZTechnologies/DockerBuildXYZ.yml" \
                             ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
-                        
-                        # 4. Copy KudeDeployXYZ.yml from Jenkins to Ansible server
                         scp -i "$SSH_KEY" \
                             "/var/lib/jenkins/workspace/BuildingXYZTechnologies/KudeDeployXYZ.yml" \
                             ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
-
-                        # 5. Copy monitoringDeployed.yml from Jenkins to Ansible server
                         scp -i "$SSH_KEY" \
                             "/var/lib/jenkins/workspace/BuildingXYZTechnologies/monitoringDeployed.yml" \
                             ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
-
-                        # 6. Verify file transfer
-                        ssh -i "$SSH_KEY" ansible@10.10.10.229 \
-                            "ls -l /home/ansible/ansible/playbooks/DockerBuildXYZ.yml"    
-                    
-                        #copy private key temporarily onto the ansible server
+                        
+                        # Copy and secure SSH key
                         scp -i "$SSH_KEY" "$SSH_KEY" ansible@10.10.10.229:/home/ansible/.ssh/jenkins_key
                         ssh -i "$SSH_KEY" ansible@10.10.10.229 "chmod 600 ~/.ssh/jenkins_key"
   
-                        # Test SSH connection first
-                        ssh -i "$SSH_KEY" ansible@10.10.10.229 "echo 'SSH test successful'"
-        
-                        # Run Ansible PLAYBOOK on the Ansible server 
+                        # Execute Ansible playbook
                         ssh -i "$SSH_KEY" ansible@10.10.10.229 "
-                            # Run the playbook
                             cd /home/ansible/ansible &&
                             ansible-playbook \
                                 -i /etc/ansible/hosts \
@@ -112,38 +88,31 @@ pipeline {
                 }
             }
         }
-         // STAGE 6: Deploy to Kubernetes
+
         stage('Deploy to K8s') {
+            agent { label 'JenkinsNode' } 
             steps {
-              script {
+                script {
                     withCredentials([sshUserPrivateKey(       
                         credentialsId: 'Ans2-ssh-key',
                         keyFileVariable: 'SSH_KEY'
                     )]) {
                         sh """
-                            # 1. Copy KudeDeployXYZ.yml from Jenkins to Ansible server
-                            #scp -i "$SSH_KEY" \
-                                #"/var/lib/jenkins/workspace/BuildingXYZTechnologies/KudeDeployXYZ.yml" \
-                                #ansible@10.10.10.229:"/home/ansible/ansible/playbooks/"
-
-                            # 2. Verify file transfer
-                            ssh -i "$SSH_KEY" ansible@10.10.10.229 \
-                                "ls -l /home/ansible/ansible/playbooks/KudeDeployXYZ.yml"
-
-                            ssh -o StrictHostKeyChecking=no -i '$SSH_KEY' ansible@10.10.10.229 '
+                            ssh -i "$SSH_KEY" ansible@10.10.10.229 "
                                 cd ${ANSIBLE_HOME} && \
                                 ansible-playbook \
                                     -i /etc/ansible/hosts \
                                     playbooks/KudeDeployXYZ.yml \
-                                    --extra-vars \"image_tag=${BUILD_NUMBER}\"
-                            '
+                                    --extra-vars \\"image_tag=${BUILD_NUMBER}\\"
+                            "
                         """
                     }
-              }
+                }
             }
         }
-        // STAGE 7: Monitoring Deployment
+
         stage('Monitor Deployment') {
+            agent { label 'JenkinsNode' } 
             steps {
                 script {
                     withCredentials([sshUserPrivateKey(
@@ -167,7 +136,6 @@ pipeline {
     
     post {
         always {
-           
             script {
                 echo "Build completed with status: ${currentBuild.result}"
             }
